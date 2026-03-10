@@ -119,7 +119,7 @@ const getIssue = async (req, res) => {
     }
 
     // Check area access
-    if (req.user.role === 'admin' && req.user.area_id !== issue.area_id) {
+    if (req.user.role === 'admin' && req.user.area_id && req.user.area_id !== issue.area_id) {
       return res.status(403).json({ 
         error: 'Access denied. You can only view issues in your assigned area.' 
       });
@@ -153,20 +153,37 @@ const updateIssueStatus = async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // Get the issue to check area
+    // Get the issue to check its area
     const issue = await Issue.findById(id);
     if (!issue) {
       return res.status(404).json({ error: 'Issue not found' });
     }
 
-    // Check area access for admin
-    if (req.user.role === 'admin' && req.user.area_id !== issue.area_id) {
-      return res.status(403).json({ 
-        error: 'Access denied. You can only update issues in your assigned area.' 
-      });
+    // Check if user has permission to update this issue
+    if (req.user.role === 'admin') {
+      // Super admin can update any issue (area_id === null)
+      if (req.user.area_id !== null) {
+        // Area admin can only update issues in their area
+        if (issue.area_id !== req.user.area_id) {
+          return res.status(403).json({ 
+            error: 'You can only update issues in your own area' 
+          });
+        }
+      }
+    } else {
+      // Regular users can only update their own issues
+      if (issue.user_id !== req.user.id) {
+        return res.status(403).json({ 
+          error: 'You can only update your own issues' 
+        });
+      }
     }
 
     const result = await Issue.updateStatus(id, status);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Issue not found' });
+    }
+
     res.json({ message: 'Issue status updated successfully' });
   } catch (error) {
     console.error('Update issue error:', error);
@@ -174,22 +191,42 @@ const updateIssueStatus = async (req, res) => {
   }
 };
 
+// Consolidated deleteIssue function
 const deleteIssue = async (req, res) => {
   try {
-    // Get the issue to check area
-    const issue = await Issue.findById(req.params.id);
+    const { id } = req.params;
+
+    // Get the issue to check its area
+    const issue = await Issue.findById(id);
     if (!issue) {
       return res.status(404).json({ error: 'Issue not found' });
     }
 
-    // Check area access for admin
-    if (req.user.role === 'admin' && req.user.area_id !== issue.area_id) {
-      return res.status(403).json({ 
-        error: 'Access denied. You can only delete issues in your assigned area.' 
-      });
+    // Check if user has permission to delete this issue
+    if (req.user.role === 'admin') {
+      // Super admin can delete any issue (area_id === null)
+      if (req.user.area_id !== null) {
+        // Area admin can only delete issues in their area
+        if (issue.area_id !== req.user.area_id) {
+          return res.status(403).json({ 
+            error: 'You can only delete issues in your own area' 
+          });
+        }
+      }
+    } else {
+      // Regular users can only delete their own issues
+      if (issue.user_id !== req.user.id) {
+        return res.status(403).json({ 
+          error: 'You can only delete your own issues' 
+        });
+      }
     }
 
-    const result = await Issue.delete(req.params.id);
+    const result = await Issue.delete(id);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Issue not found' });
+    }
+
     res.json({ message: 'Issue deleted successfully' });
   } catch (error) {
     console.error('Delete issue error:', error);
@@ -232,6 +269,24 @@ const getIssuesByLocation = async (req, res) => {
   }
 };
 
+// Admin-specific function to get issues for admin's area
+const getAdminAreaIssues = async (req, res) => {
+  try {
+    if (!req.user.area_id) {
+      // Super admin - get all issues
+      const issues = await Issue.findAll();
+      return res.json({ issues });
+    }
+    
+    // Area admin - get only their area's issues
+    const issues = await Issue.findByArea(req.user.area_id);
+    res.json({ issues });
+  } catch (error) {
+    console.error('Get admin issues error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = { 
   createIssue, 
   getAllIssues, 
@@ -239,5 +294,6 @@ module.exports = {
   updateIssueStatus, 
   deleteIssue,
   getIssuesByType,
-  getIssuesByLocation
+  getIssuesByLocation,
+  getAdminAreaIssues
 };

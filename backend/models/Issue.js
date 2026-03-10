@@ -96,7 +96,7 @@ class Issue {
     });
   }
   
-  static async findByArea(areaId) {
+ static async findByArea(areaId) {
   return new Promise((resolve, reject) => {
     db.all(`
       SELECT issues.*, users.username as author, areas.name as area_name, areas.type as area_type,

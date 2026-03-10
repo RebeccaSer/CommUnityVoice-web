@@ -1,8 +1,55 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const db = require('../config/database');
 
-const ADMIN_REGISTRATION_TOKEN = process.env.ADMIN_REGISTRATION_TOKEN || 'super-secret-admin-token-2024';
+// Area-specific admin tokens from .env
+const AREA_ADMIN_TOKENS = {
+  'Sunnyvale Estate': process.env.ADMIN_TOKEN_SUNNYVALE,
+  'Green Meadows': process.env.ADMIN_TOKEN_GREEN_MEADOWS,
+  'Oak Ridge': process.env.ADMIN_TOKEN_OAK_RIDGE,
+  'Riverside Estate': process.env.ADMIN_TOKEN_RIVERSIDE,
+  'Hillcrest Estate': process.env.ADMIN_TOKEN_HILLCREST,
+  'City of Johannesburg': process.env.ADMIN_TOKEN_JOHANNESBURG,
+  'Ekurhuleni': process.env.ADMIN_TOKEN_EKURHULENI,
+  'City of Tshwane': process.env.ADMIN_TOKEN_TSHWANE,
+  'City of Cape Town': process.env.ADMIN_TOKEN_CAPE_TOWN,
+  'eThekwini': process.env.ADMIN_TOKEN_ETHEKWINI,
+  'Parkview Apartments': process.env.ADMIN_TOKEN_PARKVIEW,
+  'Harbour View': process.env.ADMIN_TOKEN_HARBOUR_VIEW,
+  'Mountain Ridge': process.env.ADMIN_TOKEN_MOUNTAIN_RIDGE,
+  'The Gardens': process.env.ADMIN_TOKEN_GARDENS,
+  'City Lofts': process.env.ADMIN_TOKEN_CITY_LOFTS
+};
+
+const SUPER_ADMIN_TOKEN = process.env.SUPER_ADMIN_TOKEN;
+
+// Helper function to get area from token
+const getAreaFromToken = async (token) => {
+  // Check super admin first
+  if (token === SUPER_ADMIN_TOKEN) {
+    return { role: 'admin', area_id: null }; // superadmin is admin with no area
+  }
+
+  // Check area-specific tokens
+  for (const [areaName, areaToken] of Object.entries(AREA_ADMIN_TOKENS)) {
+    if (token === areaToken) {
+      // Get area ID from database
+      const area = await new Promise((resolve, reject) => {
+        db.get('SELECT id FROM areas WHERE name = ?', [areaName], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+      
+      if (area) {
+        return { role: 'admin', area_id: area.id };
+      }
+    }
+  }
+  
+  return null; // invalid token
+};
 
 const register = async (req, res) => {
   try {
@@ -36,9 +83,34 @@ const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     let role = 'user';
-    if (adminToken && adminToken === ADMIN_REGISTRATION_TOKEN) {
-      role = 'admin';
-      console.log('Admin registration detected for user:', username);
+    let assignedAreaId = area_id; // from form, may be overwritten by token
+
+    // Check for admin token
+    if (adminToken) {
+  const tokenInfo = await getAreaFromToken(adminToken);
+  
+  if (tokenInfo) {
+    role = tokenInfo.role;
+    assignedAreaId = tokenInfo.area_id;
+    console.log(`Admin registration: role=${role}, area_id=${assignedAreaId}`);
+  } else {
+    // Invalid token – return error instead of creating a regular user
+    console.log('Invalid admin token provided – registration rejected');
+    return res.status(400).json({ error: 'Invalid admin token provided' });
+  }
+}
+
+    // If token didn't set area, and user provided area_id, validate it
+    if (assignedAreaId) {
+      const area = await new Promise((resolve) => {
+        db.get('SELECT id FROM areas WHERE id = ?', [assignedAreaId], (err, row) => {
+          if (err) resolve(null);
+          else resolve(row);
+        });
+      });
+      if (!area) {
+        return res.status(400).json({ error: 'Selected area does not exist' });
+      }
     }
 
     const newUser = await User.create({
@@ -46,7 +118,7 @@ const register = async (req, res) => {
       password: hashedPassword,
       email: email || null,
       contact_number: contact_number || null,
-      area_id: area_id || null,
+      area_id: assignedAreaId || null,
       role
     });
 
@@ -80,7 +152,6 @@ const register = async (req, res) => {
     res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
-
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;

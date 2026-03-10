@@ -179,18 +179,65 @@ class User {
     });
   }
 
-  static async updateArea(userId, areaId) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        'UPDATE users SET area_id = ? WHERE id = ?',
-        [areaId, userId],
-        function(err) {
-          if (err) reject(err);
-          else resolve({ changes: this.changes });
-        }
-      );
-    });
-  }
+static async updateArea(userId, areaId) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE users SET area_id = ? WHERE id = ?',
+      [areaId, userId],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ changes: this.changes });
+      }
+    );
+  });
 }
 
+static async isAreaAdmin(userId, areaId) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT * FROM users WHERE id = ? AND role = "admin" AND area_id = ?',
+      [userId, areaId],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(!!row);
+      }
+    );
+  });
+}
+
+static async getAreaByToken(token) {
+  return new Promise((resolve, reject) => {
+    // Map token to area ID based on env vars
+    const areaMapping = {
+      [process.env.ADMIN_TOKEN_SUNNYVALE]: 'Sunnyvale Estate',
+      [process.env.ADMIN_TOKEN_GREEN_MEADOWS]: 'Green Meadows',
+      [process.env.ADMIN_TOKEN_OAK_RIDGE]: 'Oak Ridge',
+      [process.env.ADMIN_TOKEN_RIVERSIDE]: 'Riverside Estate',
+      [process.env.ADMIN_TOKEN_HILLCREST]: 'Hillcrest Estate',
+      [process.env.ADMIN_TOKEN_JOHANNESBURG]: 'City of Johannesburg',
+      [process.env.ADMIN_TOKEN_EKURHULENI]: 'Ekurhuleni',
+      [process.env.ADMIN_TOKEN_TSHWANE]: 'City of Tshwane',
+      [process.env.ADMIN_TOKEN_CAPE_TOWN]: 'City of Cape Town',
+      [process.env.ADMIN_TOKEN_ETHEKWINI]: 'eThekwini',
+      [process.env.ADMIN_TOKEN_PARKVIEW]: 'Parkview Apartments',
+      [process.env.ADMIN_TOKEN_HARBOUR_VIEW]: 'Harbour View',
+      [process.env.ADMIN_TOKEN_MOUNTAIN_RIDGE]: 'Mountain Ridge',
+      [process.env.ADMIN_TOKEN_GARDENS]: 'The Gardens',
+      [process.env.ADMIN_TOKEN_CITY_LOFTS]: 'City Lofts'
+    };
+
+    const areaName = areaMapping[token];
+    
+    if (!areaName) {
+      resolve(null);
+      return;
+    }
+
+    db.get('SELECT id FROM areas WHERE name = ?', [areaName], (err, row) => {
+      if (err) reject(err);
+      else resolve(row || null);
+    });
+  });
+}
+}
 module.exports = User;

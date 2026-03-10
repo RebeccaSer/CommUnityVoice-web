@@ -14,79 +14,39 @@ const Navbar = () => {
   };
 
   return (
-    <nav style={styles.navbar}>
-      <div style={styles.navBrand}>
-        <Link to="/" style={styles.brandLink}>CommUnityVoice</Link>
+    <nav className="bg-primary border-b-2 border-accent2 px-8 py-4 flex justify-between items-center">
+      <div className="text-2xl font-bold">
+        <Link to="/" className="no-underline text-dark">CommUnityVoice</Link>
       </div>
       
-      <div style={styles.navLinks}>
+      <div className="flex items-center gap-4">
         {currentUser ? (
           <>
-            <Link to="/" style={styles.navLink}>Dashboard</Link>
-            <Link to="/issues" style={styles.navLink}>Issues Board</Link>
-            <Link to="/profile" style={styles.navLink}>Profile</Link>
+            <Link to="/" className="text-dark hover:text-accent1 transition-colors">Dashboard</Link>
+            <Link to="/issues" className="text-dark hover:text-accent1 transition-colors">Issues Board</Link>
+            <Link to="/profile" className="text-dark hover:text-accent1 transition-colors">Profile</Link>
             {isAdmin && (
-              <Link to="/admin" style={styles.navLink}>Admin</Link>
+              <Link to="/admin" className="text-dark hover:text-accent1 transition-colors">Admin</Link>
             )}
-            <span style={styles.userInfo}>
+            <span className="text-dark">
               Welcome, {currentUser.username} ({currentUser.role})
             </span>
-            <button onClick={handleLogout} style={styles.logoutBtn}>
+            <button 
+              onClick={handleLogout} 
+              className="bg-secondary hover:bg-accent1 text-dark px-4 py-2 rounded transition-colors"
+            >
               Logout
             </button>
           </>
         ) : (
           <>
-            <Link to="/login" style={styles.navLink}>Login</Link>
-            <Link to="/register" style={styles.navLink}>Register</Link>
+            <Link to="/login" className="text-dark hover:text-accent1 transition-colors">Login</Link>
+            <Link to="/register" className="text-dark hover:text-accent1 transition-colors">Register</Link>
           </>
         )}
       </div>
     </nav>
   );
-};
-
-const styles = {
-  navbar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1rem 2rem',
-    backgroundColor: '#f8f9fa',
-    borderBottom: '1px solid #dee2e6',
-  },
-  navBrand: {
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-  },
-  brandLink: {
-    textDecoration: 'none',
-    color: '#007bff',
-  },
-  navLinks: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-  },
-  navLink: {
-    textDecoration: 'none',
-    color: '#495057',
-    padding: '0.5rem 1rem',
-    borderRadius: '0.25rem',
-    transition: 'background-color 0.2s',
-  },
-  userInfo: {
-    margin: '0 1rem',
-    color: '#6c757d',
-  },
-  logoutBtn: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.25rem',
-    cursor: 'pointer',
-  },
 };
 
 export default Navbar;
